@@ -7,3 +7,5 @@ python-dotenv>=1.0.0
 pandas>=2.0.0
 uvicorn>=0.30.0
 urllib3<2.0
+youtube-transcript-api>=0.6.0
+feedparser>=6.0.0

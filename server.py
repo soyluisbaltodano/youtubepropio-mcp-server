@@ -10,6 +10,10 @@ load_dotenv(Path(__file__).parent / ".env")
 from youtube_data import get_channel_stats, search_youtube, get_channel_videos, get_video_details
 from youtube_analytics import get_my_analytics, get_traffic_sources, get_top_videos_analytics
 from google_trends import keyword_trends, trending_now, related_keywords, keyword_by_region
+from youtube_extras import (
+    get_video_transcript, get_channel_rss, get_video_comments,
+    compare_channels, get_channel_playlists,
+)
 
 # Disable DNS rebinding protection so external hosts (Render.com) can connect
 mcp = FastMCP(
@@ -108,6 +112,56 @@ def related_queries(keyword: str, country: str = "MX") -> str:
 def interest_by_region(keyword: str, country: str = "MX") -> str:
     """En qué estados o regiones se busca más una palabra clave. Útil para saber dónde está tu audiencia."""
     return json.dumps(keyword_by_region(keyword, country), ensure_ascii=False, indent=2)
+
+
+# ── Extras: transcripción, RSS, comentarios, comparación, playlists ──────────
+
+@mcp.tool()
+def video_transcript(video_id: str, language: str = "es") -> str:
+    """
+    Transcripción completa de un video de YouTube. No requiere API key.
+    Acepta ID o URL completa. language: 'es', 'en', etc.
+    Si no hay transcripción en el idioma pedido, usa la que esté disponible.
+    """
+    return json.dumps(get_video_transcript(video_id, language), ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def channel_rss_feed(channel_id: str, max_results: int = 15) -> str:
+    """
+    Últimos videos de un canal via RSS — sin consumir quota de la API de YouTube.
+    Ideal para monitorear competencia. Acepta @handle o channel ID.
+    """
+    return json.dumps(get_channel_rss(channel_id, max_results), ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def video_comments(video_id: str, max_results: int = 20, order: str = "relevance") -> str:
+    """
+    Comentarios top de un video. Revela qué le importa a la audiencia.
+    order: 'relevance' (más relevantes) o 'time' (más recientes).
+    Acepta ID o URL completa.
+    """
+    return json.dumps(get_video_comments(video_id, max_results, order), ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def compare_channels_tool(channels: str) -> str:
+    """
+    Compara 2-4 canales lado a lado: subs, vistas, videos, promedio de vistas por video.
+    channels: handles o IDs separados por coma (ej: '@missmaru, @otrocanal, @tercero')
+    """
+    channel_list = [c.strip() for c in channels.split(",")][:4]
+    return json.dumps(compare_channels(channel_list), ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def channel_playlists(channel_id: str, max_results: int = 20) -> str:
+    """
+    Playlists de un canal ordenadas por cantidad de videos.
+    Acepta @handle o channel ID.
+    """
+    return json.dumps(get_channel_playlists(channel_id, max_results), ensure_ascii=False, indent=2)
 
 
 def build_http_app():
