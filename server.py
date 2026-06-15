@@ -105,6 +105,94 @@ def interest_by_region(keyword: str, country: str = "MX") -> str:
     return json.dumps(keyword_by_region(keyword, country), ensure_ascii=False, indent=2)
 
 
+def build_http_app():
+    import uuid
+    from starlette.applications import Starlette
+    from starlette.routing import Route, Mount
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse, HTMLResponse, RedirectResponse
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware
+
+    async def oauth_metadata(request: Request):
+        base = str(request.base_url).rstrip("/")
+        return JSONResponse({
+            "issuer": base,
+            "authorization_endpoint": f"{base}/oauth/authorize",
+            "token_endpoint": f"{base}/oauth/token",
+            "registration_endpoint": f"{base}/oauth/register",
+            "response_types_supported": ["code"],
+            "grant_types_supported": ["authorization_code"],
+            "code_challenge_methods_supported": ["S256"],
+        })
+
+    async def oauth_register(request: Request):
+        body = await request.json()
+        return JSONResponse({
+            "client_id": str(uuid.uuid4()),
+            "client_secret": str(uuid.uuid4()),
+            "redirect_uris": body.get("redirect_uris", []),
+            "grant_types": ["authorization_code"],
+            "response_types": ["code"],
+            "token_endpoint_auth_method": "client_secret_post",
+        }, status_code=201)
+
+    async def oauth_authorize(request: Request):
+        if request.method == "GET":
+            p = request.query_params
+            redirect_uri = p.get("redirect_uri", "")
+            state = p.get("state", "")
+            code = str(uuid.uuid4())
+            html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Autorizar YouTube MCP</title>
+<style>
+  body{{font-family:-apple-system,Arial,sans-serif;max-width:420px;margin:80px auto;padding:20px;background:#f8fafc;text-align:center}}
+  .card{{background:white;padding:40px;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.08)}}
+  h2{{color:#1e293b;margin-bottom:8px}} p{{color:#64748b;margin-bottom:28px}}
+  button{{background:#2563eb;color:white;padding:12px 32px;border:none;border-radius:8px;font-size:16px;cursor:pointer;width:100%}}
+  button:hover{{background:#1d4ed8}}
+</style></head>
+<body><div class="card">
+  <div style="font-size:48px;margin-bottom:16px">🎬</div>
+  <h2>YouTube MCP</h2>
+  <p>Claude Desktop quiere conectarse a tu servidor de análisis de YouTube.</p>
+  <form method="post">
+    <input type="hidden" name="redirect_uri" value="{redirect_uri}">
+    <input type="hidden" name="state" value="{state}">
+    <input type="hidden" name="code" value="{code}">
+    <button type="submit">✅ Autorizar acceso</button>
+  </form>
+</div></body></html>"""
+            return HTMLResponse(html)
+
+        form = await request.form()
+        redirect_uri = form.get("redirect_uri", "")
+        state = form.get("state", "")
+        code = form.get("code", str(uuid.uuid4()))
+        sep = "&" if "?" in redirect_uri else "?"
+        return RedirectResponse(f"{redirect_uri}{sep}code={code}&state={state}", status_code=302)
+
+    async def oauth_token(request: Request):
+        return JSONResponse({
+            "access_token": str(uuid.uuid4()),
+            "token_type": "bearer",
+            "expires_in": 31536000,
+        })
+
+    return Starlette(
+        routes=[
+            Route("/.well-known/oauth-authorization-server", oauth_metadata, methods=["GET"]),
+            Route("/oauth/register", oauth_register, methods=["POST"]),
+            Route("/oauth/authorize", oauth_authorize, methods=["GET", "POST"]),
+            Route("/oauth/token", oauth_token, methods=["POST"]),
+            Mount("/", app=mcp.sse_app()),
+        ],
+        middleware=[
+            Middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]),
+        ],
+    )
+
+
 if __name__ == "__main__":
     import sys
     import os
@@ -114,7 +202,6 @@ if __name__ == "__main__":
 
     if http_mode:
         import uvicorn
-        app = mcp.sse_app()
-        uvicorn.run(app, host="0.0.0.0", port=port)
+        uvicorn.run(build_http_app(), host="0.0.0.0", port=port)
     else:
         mcp.run()
