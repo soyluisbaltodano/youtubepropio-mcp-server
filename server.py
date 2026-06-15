@@ -1,4 +1,5 @@
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from dotenv import load_dotenv
 from pathlib import Path
 import json
@@ -10,7 +11,11 @@ from youtube_data import get_channel_stats, search_youtube, get_channel_videos, 
 from youtube_analytics import get_my_analytics, get_traffic_sources, get_top_videos_analytics
 from google_trends import keyword_trends, trending_now, related_keywords, keyword_by_region
 
-mcp = FastMCP("youtube-mcp")
+# Disable DNS rebinding protection so external hosts (Render.com) can connect
+mcp = FastMCP(
+    "youtube-mcp",
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+)
 
 
 # ── YouTube Data (datos públicos de cualquier canal) ──────────────────────────
