@@ -109,11 +109,12 @@ if __name__ == "__main__":
     import sys
     import os
 
-    # En Render (nube) el PORT viene como variable de entorno
     port = int(os.getenv("PORT", 8000))
     http_mode = "--http" in sys.argv or "PORT" in os.environ
 
     if http_mode:
-        mcp.run(transport="sse", host="0.0.0.0", port=port)
+        import uvicorn
+        app = mcp.sse_app()
+        uvicorn.run(app, host="0.0.0.0", port=port)
     else:
         mcp.run()
