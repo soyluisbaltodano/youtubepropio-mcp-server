@@ -9,7 +9,12 @@ SCOPES = [
     "https://www.googleapis.com/auth/yt-analytics.readonly",
 ]
 
-TOKEN_PATH = os.path.join(os.path.dirname(__file__), "credentials", "token.json")
+# En Render, Secret Files van a /etc/secrets/<filename>
+TOKEN_PATH = (
+    "/etc/secrets/token.json"
+    if os.path.exists("/etc/secrets/token.json")
+    else os.path.join(os.path.dirname(__file__), "credentials", "token.json")
+)
 CREDENTIALS_PATH = os.getenv(
     "OAUTH_CREDENTIALS_PATH",
     os.path.join(os.path.dirname(__file__), "credentials", "oauth_client.json"),
