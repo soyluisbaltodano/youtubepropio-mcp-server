@@ -14,6 +14,7 @@ from youtube_extras import (
     get_video_transcript, get_channel_rss, get_video_comments,
     compare_channels, get_channel_playlists,
 )
+from youtube_outliers import find_outliers
 
 # Disable DNS rebinding protection so external hosts (Render.com) can connect
 mcp = FastMCP(
@@ -162,6 +163,30 @@ def channel_playlists(channel_id: str, max_results: int = 20) -> str:
     Acepta @handle o channel ID.
     """
     return json.dumps(get_channel_playlists(channel_id, max_results), ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def outlier_videos(
+    niche: str,
+    max_candidates: int = 25,
+    min_score: float = 3.0,
+    max_results: int = 15,
+    published_after_days: int = None,
+) -> str:
+    """
+    Encuentra videos "outlier" en un nicho: videos que superan por mucho (3x, 10x, 50x...)
+    el promedio normal de SU PROPIO canal. Así se identifican formatos/temas que están
+    funcionando ahora mismo, sin importar el tamaño del canal.
+    niche: tema o palabra clave a buscar (ej: 'rutina bebé 6 meses', 'lactancia consejos')
+    max_candidates: cuántos videos de búsqueda revisar (máx 50)
+    min_score: multiplicador mínimo para considerar un video outlier (default 3x)
+    max_results: cuántos outliers devolver, ordenados de mayor a menor score
+    published_after_days: si se especifica, solo revisa videos publicados en los últimos N días
+    """
+    return json.dumps(
+        find_outliers(niche, max_candidates, min_score, max_results, published_after_days),
+        ensure_ascii=False, indent=2,
+    )
 
 
 def build_http_app():
