@@ -3,18 +3,26 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import os
+import shutil
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.readonly",
     "https://www.googleapis.com/auth/yt-analytics.readonly",
 ]
 
-# En Render, Secret Files van a /etc/secrets/<filename>
+# En Render, Secret Files van a /etc/secrets/<filename> pero ese directorio es
+# de solo lectura. _get_credentials() reescribe el token cada vez que lo refresca,
+# así que la copia de trabajo vive en /tmp (sí es escribible); /etc/secrets solo
+# se usa como semilla inicial.
+_RENDER_SECRET_TOKEN = "/etc/secrets/token.json"
 TOKEN_PATH = (
-    "/etc/secrets/token.json"
-    if os.path.exists("/etc/secrets/token.json")
+    "/tmp/token.json"
+    if os.path.exists(_RENDER_SECRET_TOKEN)
     else os.path.join(os.path.dirname(__file__), "credentials", "token.json")
 )
+if TOKEN_PATH == "/tmp/token.json" and not os.path.exists(TOKEN_PATH):
+    shutil.copy(_RENDER_SECRET_TOKEN, TOKEN_PATH)
+
 CREDENTIALS_PATH = os.getenv(
     "OAUTH_CREDENTIALS_PATH",
     os.path.join(os.path.dirname(__file__), "credentials", "oauth_client.json"),
